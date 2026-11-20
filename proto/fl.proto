@@ -1,0 +1,102 @@
+// fl.proto - gRPC contract for the minimal Federated Learning framework.
+// Shared by the Coordinator (Python), the CLI (Python) and the Participants (Node.js).
+
+syntax = "proto3";
+
+package fl;
+
+// ---------- Service ----------
+// The Coordinator is the only gRPC server.
+// The CLI and the Participants are gRPC clients.
+service Coordinator {
+  // Called by the CLI: add a participant to the federation.
+  rpc RegisterParticipant (RegisterParticipantRequest) returns (RegisterParticipantResponse);
+
+  // Called by the CLI: create a new training job (experiment).
+  rpc CreateExperiment (CreateExperimentRequest) returns (CreateExperimentResponse);
+
+  // Called by the CLI: start a created job.
+  rpc StartTraining (StartTrainingRequest) returns (StartTrainingResponse);
+
+  // Called by Participants (polling): "is there work for me?"
+  rpc GetTrainingTask (GetTrainingTaskRequest) returns (TrainingTask);
+
+  // Called by Participants: send back the local training result.
+  rpc SubmitTrainingResult (TrainingResult) returns (SubmitTrainingResultResponse);
+
+  // Called by the CLI: check job progress and the global result.
+  rpc GetTrainingStatus (GetTrainingStatusRequest) returns (TrainingStatus);
+}
+
+// ---------- Shared types ----------
+enum JobStatus {
+  JOB_STATUS_UNKNOWN = 0;  // proto3 requires the first enum value to be 0
+  CREATED = 1;
+  RUNNING = 2;
+  COMPLETED = 3;
+}
+
+// ---------- RegisterParticipant ----------
+message RegisterParticipantRequest {
+  string participant_id = 1;
+}
+message RegisterParticipantResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ---------- CreateExperiment ----------
+message CreateExperimentRequest {
+  int32 num_rounds = 1;            // = TrainingConfig in the monolith
+}
+message CreateExperimentResponse {
+  string job_id = 1;
+  string message = 2;
+}
+
+// ---------- StartTraining ----------
+message StartTrainingRequest {
+  string job_id = 1;
+}
+message StartTrainingResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+// ---------- GetTrainingTask ----------
+message GetTrainingTaskRequest {
+  string participant_id = 1;
+}
+message TrainingTask {
+  bool has_task = 1;               // false = no work yet, ask again later
+  string job_id = 2;
+  int32 round = 3;
+  double global_weight = 4;        // current global model
+}
+
+// ---------- SubmitTrainingResult ----------
+message TrainingResult {
+  string participant_id = 1;
+  string job_id = 2;
+  int32 round = 3;
+  double local_weight = 4;         // result of local training
+  int32 num_samples = 5;           // used for the weighted average (FedAvg)
+}
+message SubmitTrainingResultResponse {
+  bool accepted = 1;
+  string message = 2;
+}
+
+// ---------- GetTrainingStatus ----------
+message GetTrainingStatusRequest {
+  string job_id = 1;
+}
+message TrainingStatus {
+  string job_id = 1;
+  JobStatus status = 2;
+  int32 current_round = 3;
+  int32 num_rounds = 4;
+  double global_weight = 5;
+  int32 results_received = 6;      // results received in the current round
+  int32 total_participants = 7;
+}
