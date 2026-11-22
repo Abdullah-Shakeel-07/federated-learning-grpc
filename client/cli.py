@@ -1,3 +1,4 @@
+
 """
 Management Client (CLI) - a gRPC client of the Coordinator.
 
@@ -24,6 +25,7 @@ import fl_pb2_grpc
 
 
 def main():
+    # Set up CLI commands and their required arguments
     parser = argparse.ArgumentParser(description="Federated Learning management CLI")
     parser.add_argument("--coordinator", default="localhost:50051", help="coordinator address")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -41,6 +43,8 @@ def main():
     p.add_argument("job_id")
 
     args = parser.parse_args()
+
+    # Connect to the coordinator using the generated gRPC stub
     stub = fl_pb2_grpc.CoordinatorStub(grpc.insecure_channel(args.coordinator))
 
     try:
@@ -58,6 +62,7 @@ def main():
             print(("OK: " if r.success else "ERROR: ") + r.message)
 
         elif args.command == "status":
+            # Fetch the latest training progress from the coordinator
             s = stub.GetTrainingStatus(fl_pb2.GetTrainingStatusRequest(job_id=args.job_id))
             print(f"Job:           {s.job_id}")
             print(f"Status:        {fl_pb2.JobStatus.Name(s.status)}")
@@ -66,6 +71,7 @@ def main():
             print(f"Global weight: {s.global_weight}")
 
     except grpc.RpcError as e:
+        # Show a clearer error when the coordinator is unreachable
         if e.code() == grpc.StatusCode.UNAVAILABLE:
             print(f"ERROR: cannot reach the coordinator at {args.coordinator}. Is it running?")
         else:
@@ -74,4 +80,5 @@ def main():
 
 
 if __name__ == "__main__":
+    # Run the CLI only when this file is executed directly
     main()
